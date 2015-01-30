@@ -1,5 +1,5 @@
 ## a wc like tool that works with word doc[x] files
-Function Measure-Doc {
+function Measure-Doc {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$true, ValueFromPipeLine=$true)]
@@ -41,22 +41,25 @@ Function Measure-Doc {
 }
 
 ## du like command, might have to write this in C# to get acceptable speed
-Function Get-DiskUsage { # not sure if I should use Measure-<blah> in this case
+function Get-DiskUsage { # not sure if I should use Measure-<blah> in this case
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$true, ValueFromPipeLine=$true)]
-        [string] $startFolder # not sure what to do about sending arrays of filenames ...
+        [string] $folder # not sure what to do about sending arrays of filenames ...
     )
 
     Process {
-        $colItems = (Get-ChildItem $startFolder | Measure-Object -Property Length -Sum) 
-        "$startFolder -- " + "{0:N2}" -f ($colItems.sum / 1MB) + " MB" #TODO: return an output object for each directory or file
+        # might be good to see if use COM FileSystemObject is faster
+        $fsize = (Get-ChildItem $folder -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum)
+        if ($fsize.Sum -eq $null) {$fsize = 0} else {$fsize = $fsize.Sum} # not sure if this slows it down a lot
 
-        $colItems = (Get-ChildItem $startFolder -Recurse | Where-Object {$_.PSIsContainer -eq $true} | Sort-Object)
-        foreach ($i in $colItems)
-        {
-            $subFolderItems = (Get-ChildItem $i.FullName | Measure-Object -Property Length -Sum)
-            $i.FullName + " -- " + "{0:N2}" -f ($subFolderItems.sum / 1MB) + " MB"
-        }
+        $out = New-Object -TypeName psobject -Property (
+            @{
+                'Name'=$folder;
+                'Length'=$fsize;
+            }
+        )
+
+        Write-Output $out
     }
 }
